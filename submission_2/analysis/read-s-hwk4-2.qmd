@@ -1,0 +1,366 @@
+---
+title: "Homework Four Submission 2"
+author: "Safia Read"
+format:
+  pdf:
+    output-file: "read-s-hwk4-2"
+    output-ext:  "pdf"
+    header-includes:
+      - \usepackage{float}
+      - \floatplacement{table}{H}
+---
+
+This is my second submission of the fourth homework for Econ 470. 
+
+[Link to Github](https://github.com/safiaread/homework_4)
+
+https://github.com/safiaread/homework_4
+
+```{r, echo = F, message = F}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, stringr, readxl, data.table, gdata, fixest, xtable, modelsummary, rdrobust, MatchIt)
+data <- read_rds("/Users/safiaread/Desktop/homework_4/data/output/final_ma_data.rds")
+data <- data %>% 
+subset(year >= 2010 & year <= 2015 & snp == "No" & !is.na(partc_score) & (planid < 800 | planid >= 900))
+
+```
+
+Question 1
+It looks like the number of plans is pretty low.
+```{r, echo = F, message = F}
+q1<- data %>%
+  group_by(fips, year) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = factor(year), y = count)) +
+  geom_boxplot(outlier.shape = NA) +
+  labs(title = "Boxplot of Counts by County", x = "County", y = "Count")+
+  ylim(0,40)
+
+#Have dropped outliers
+```
+
+Question 2
+The star ratings have increased generally. 
+```{r, echo = F, message = F}
+data%>%
+filter(year == 2010)%>%
+ggplot(aes(x = Star_Rating)) +
+geom_histogram()
+
+data%>%
+filter(year == 2012)%>%
+ggplot(aes(x = Star_Rating)) +
+geom_histogram()
+
+data%>%
+filter(year == 2015)%>%
+ggplot(aes(x = Star_Rating)) +
+geom_histogram()
+```
+
+Question 3
+
+The average benchmark has fallen according to this graph, but I think the variable calculation is off.
+```{r, echo = F}
+q3 <- data%>%
+group_by(year)%>%
+summarise(avg_benchmark = mean(ma_rate, na.rm = T))
+#he grouped by ssa but makes mine look insane
+
+ggplot(q3, aes(x = year, y = avg_benchmark))+
+geom_line()
+```
+
+Question 4
+
+Medicare Advantage has increased in popularity over time. I would expect that to correlate with increased benchmark payments.
+```{r, echo = F}
+q4 <- data %>%
+  group_by(year) %>%
+  summarize(med_prop = sum(avg_enrollment, na.rm = TRUE) / sum(avg_eligibles, na.rm = TRUE))
+  
+ggplot(q4, aes(x = year, y = med_prop)) +
+geom_line()
+
+#This one has become f**ked up, fix this!
+
+#Attempt 2 w/t first instead of mean
+q4 <- data %>%
+  group_by(year) %>%
+  summarize(med_prop = first(avg_enrollment, na.rm = TRUE) / first(avg_eligibles, na.rm = TRUE), bench = mean(ma_rate, na.rm = TRUE))
+```
+
+Question 5
+```{r, echo = F}
+data_raw <- data %>%
+  mutate(raw_rating=rowMeans(
+    cbind(breastcancer_screen,rectalcancer_screen,cv_cholscreen,diabetes_cholscreen,
+          glaucoma_test,monitoring,flu_vaccine,pn_vaccine,physical_health,
+          mental_health,osteo_test,physical_monitor,primaryaccess,
+          hospital_followup,depression_followup,nodelays,carequickly,
+          overallrating_care,overallrating_plan,calltime,
+          doctor_communicate,customer_service,osteo_manage,
+          diabetes_eye,diabetes_kidney,diabetes_bloodsugar,
+          diabetes_chol,antidepressant,bloodpressure,ra_manage,
+          copd_test,betablocker,bladder,falling,appeals_timely,
+          appeals_review),
+    na.rm=T)) %>%
+  select(contractid, planid, fips, avg_enrollment, state, county, raw_rating, partc_score,
+         avg_eligibles, avg_enrolled, premium_partc, risk_ab, Star_Rating,
+         bid, avg_ffscost, ma_rate, plan_type, partd)
+
+q5 <-data_raw %>%
+  select(raw_rating, Star_Rating) %>%
+  mutate(three = sum(ifelse(raw_rating >= 2.75 & raw_rating < 3 & Star_Rating == 3, 1, 0), na.rm = TRUE), 
+         three_five = sum(ifelse(raw_rating >= 3.25 & raw_rating < 3.5 & Star_Rating == 3.5, 1, 0), na.rm = TRUE), 
+         four = sum(ifelse(raw_rating >= 3.75 & raw_rating < 4 & Star_Rating == 4, 1, 0), na.rm = TRUE), 
+         four_five = sum(ifelse(raw_rating >= 4.25 & raw_rating < 4.5 & Star_Rating == 4.5, 1, 0), na.rm = TRUE), 
+         five = sum(ifelse(raw_rating >= 4.75 & raw_rating < 5 & Star_Rating == 5, 1, 0), na.rm = TRUE))
+
+
+#mutate error
+q5[1,3:7]
+```
+
+Question 6
+```{r, echo = F}
+data.rd1 <- data_raw %>%
+  filter(Star_Rating==2.5 | Star_Rating==3)%>%
+  mutate(score = raw_rating - 2.25,
+         treat = (score>=0),
+         window1 = (score>=-.125 & score<=.125),
+         mkt_share = avg_enrollment/avg_eligibles,
+         ln_share = log(mkt_share),
+         score_treat=score*treat)
+star25.1 <- lm(mkt_share ~ score + treat, data=data.rd1)
+star25.2 <- lm(mkt_share ~ score + treat, data= (data.rd1 %>% filter(window1==TRUE)))
+star25.3 <- lm(mkt_share ~ score + treat + score_treat, data= (data.rd1 %>% filter(window1==TRUE)))
+est1 <- as.numeric(star25.1$coef[3])
+est2 <- as.numeric(star25.2$coef[3])
+est3 <- as.numeric(star25.3$coef[3])
+
+bandwidth <- c("0.2", "0.125", "0.125")
+estimates <- c(est1, est2, est3)
+
+three_stars <- data.frame(bandwidth,estimates)
+three_stars
+
+ma.rd275 <- data_raw %>%
+  filter(Star_Rating==2.5 | Star_Rating==3) %>%
+  mutate(score = raw_rating - 2.75,
+         treat = (score >= 0),
+         window2 = (score >= -.125 & score <= .125),
+         mkt_share = avg_enrollment / avg_eligibles,
+         ln_share = log(mkt_share),
+         score_treat = score * treat)
+
+
+est275 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.125, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+              
+summary(est275)
+
+#rows <- tribble(~term, ~ m1, ~ m2, ~ m3 ,
+              #  'Bandwidth', "0.25", "0.125", "0.#125")
+#attr(rows, 'position')  <- 7
+
+#modelsummary(list(star25.1, star25.2, star25.3),
+         # keep=c("score", "treatTRUE", "score_treat"),
+         # coef_map=c("score"="Raw Score", 
+        #            "treatTRUE"="Treatment",
+         #           "score_treat"="Score x Treat"),
+        #  gof_map=c("nobs", "r.squared"),
+        #  add_rows=rows)
+
+data.rd2 <- data_raw %>%
+  filter(Star_Rating==3 | Star_Rating==3.5) %>%
+  mutate(score = raw_rating - 2.25,
+         treat = (score>=0),
+         window1 = (score>=-.125 & score<=.125),
+         mkt_share = avg_enrollment/avg_eligibles,
+         ln_share = log(mkt_share),
+         score_treat=score*treat)
+star35.1 <- lm(mkt_share ~ score + treat, data=data.rd2)
+star35.2 <- lm(mkt_share ~ score + treat, data= (data.rd2 %>% filter(window1==TRUE)))
+star35.3 <- lm(mkt_share ~ score + treat + score_treat, data= (data.rd2 %>% filter(window1==TRUE)))
+est1 <- as.numeric(star35.1$coef[3])
+est2 <- as.numeric(star35.2$coef[3])
+est3 <- as.numeric(star35.3$coef[3])
+
+bandwidth <- c("0.2", "0.125", "0.125")
+estimates <- c(est1, est2, est3)
+
+threefive_stars <- data.frame(bandwidth,estimates)
+threefive_stars
+
+#rows <- tribble(~term, ~ m1, ~ m2, ~ m3 ,
+              #  'Bandwidth', "0.25", "0.125", "0.125")
+#attr(rows, 'position')  <- 7
+
+#modelsummary(list(star35.1, star35.2, star35.3),
+          #keep=c("score", "treatTRUE", "score_treat"),
+          #coef_map=c("score"="Raw Score", 
+                   # "treatTRUE"="Treatment",
+                    #"score_treat"="Score x Treat"),
+          #gof_map=c("nobs", "r.squared"),
+          #add_rows=rows)
+
+ma.rd325 <- data_raw %>%
+  filter(Star_Rating==3 | Star_Rating==3.5) %>%
+  mutate(score = raw_rating - 3.25,
+         treat = (score >= 0),
+         window2 = (score >= -.125 & score <= .125),
+         mkt_share = avg_enrollment / avg_eligibles,
+         ln_share = log(mkt_share),
+         score_treat = score * treat)
+
+
+est325 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
+                 h=0.125, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+              
+summary(est325)
+
+```
+
+Question 7
+
+The data is sensitive to the bandwidth and changes the estimate.
+```{r, echo = F}
+
+ma.rd275 <- data_raw %>%
+  filter(Star_Rating==2.5 | Star_Rating==3) %>%
+  mutate(score = raw_rating - 2.75,
+         treat = (score >= 0),
+         window2 = (score >= -.125 & score <= .125),
+         mkt_share = avg_enrollment / avg_eligibles,
+         ln_share = log(mkt_share),
+         score_treat = score * treat)
+
+
+est275_1 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.1, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+est275_2 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.12, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+est275_3 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.13, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")              
+est275_4 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.14, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")         
+est275_5 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.15, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")     
+
+summary(est275)
+
+bandwidth <- c("0.1", "0.12", "0.13", "0.14", "0.15")
+estimates <- c(est275_1$coef[1], est275_2$coef[1], est275_3$coef[1], est275_4$coef[1], est275_5$coef[1])
+
+three_stars <- data.frame(bandwidth,estimates)
+three_stars
+
+
+est325_1 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
+                 h=0.1, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+est325_2 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
+                 h=0.12, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+est325_3 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
+                 h=0.13, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")              
+est325_4 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
+                 h=0.14, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")         
+est325_5 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
+                 h=0.15, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")     
+
+
+bandwidth <- c("0.1", "0.12", "0.13", "0.14", "0.15")
+estimates <- c(est325_1$coef[1], est325_2$coef[1], est325_3$coef[1], est325_4$coef[1], est325_5$coef[1])
+
+threefive_stars <- data.frame(bandwidth,estimates)
+threefive_stars
+
+#rdrobust(y=ma.rd375$mkt_share, x=ma.rd375$score, c=0,
+            #     h=0.125, p=1, kernel="uniform", vce="hc0",
+           #      masspoints="off")
+```
+
+Question 8
+
+It looks like the data is clustered aaround the threshold.
+```{r, echo = F}
+  ggplot(data_raw, aes(x=raw_rating)) + 
+  geom_density() + theme_bw() +
+  labs(
+    x="Running Variable",
+    y="Number of Plans",
+    title="Distribution of Raw Scores for 2.75 Cutoff"
+  ) +
+  geom_vline(xintercept = 2.75, linetype = "dashed", color = "red")+
+  scale_x_continuous(limits=c(2.5,3))
+  #add scale limits
+
+  ggplot(data_raw, aes(x=raw_rating)) + 
+  geom_density() + theme_bw() +
+  labs(
+    x="Running Variable",
+    y="Number of Plans",
+    title="Distribution of Raw Scores for 3.25 Cutoff"
+  ) +
+  geom_vline(xintercept = 3.25, linetype = "dashed", color = "red")+
+  scale_x_continuous(limits=c(3,3.5))
+  
+  #scale_x_continous()
+  #add scale limits
+
+```
+
+Question 9
+
+From my binned scatterplots, we can see some covariate imbalance around the proportion of HMO plans, with a higher proportion of HMO's being above the 3.5 threshold. For the Part D plans, there seems to be a lower proprtion of them past the 3.5 threshold. There isn't a lot of data around the 3 star threshold.
+
+```{r, echo = F}
+
+q9 <- data_raw %>%
+  mutate(hmo = ifelse(plan_type == "HMO/HMOPOS", 1, 0), 
+         dummy_partd = ifelse(partd == "Yes", 1, 0)) %>%
+  group_by(raw_rating) %>%
+  summarise(prop_hmo = mean(hmo), prop_d = mean(dummy_partd))
+
+q9$dummy_partd
+
+q9 %>%
+  mutate(bin = ntile(prop_hmo, n = 30)) %>%
+  group_by(bin) %>%
+  summarise(xmean = mean(raw_rating), ymean = mean(prop_hmo)) %>%
+  ggplot(aes(x = xmean, y = ymean)) + 
+  geom_point() +
+  geom_vline(xintercept = 2.75, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 3.25, linetype = "dashed", color = "blue") +
+  scale_x_continuous(limits = c(2.5, 3.5))+
+  labs(title = "HMOs")
+
+q9 %>%
+  mutate(bin = ntile(prop_d, n = 20)) %>%
+  group_by(bin) %>%
+  summarise(xmean = mean(raw_rating), ymean = mean(prop_d)) %>%
+  ggplot(aes(x = xmean, y = ymean)) + 
+  geom_point() +
+  geom_vline(xintercept = 2.75, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 3.25, linetype = "dashed", color = "blue") +
+  scale_x_continuous(limits = c(2.5, 3.5))+
+  labs(title = "Part D")
+
+#covariate balance from homework 2
+```
+
+Question 10
+
+Increasing star rating caused enrollments to decrease slightly over estimates with small bandwidths. I'm not sure why, maybe my estimates are off.

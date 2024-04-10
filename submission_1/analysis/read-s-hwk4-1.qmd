@@ -255,6 +255,7 @@ ggplot(data.rd1, aes(x=score)) +
     y="Number of Plans",
     title="Distribution of Raw Scores"
   ) 
+
 ```
 
 Question 9

@@ -282,6 +282,67 @@ colnames(data)
 
 table(data$partd)
 
+ma.rd275 <- data_raw %>%
+  filter(Star_Rating==2.5 | Star_Rating==3) %>%
+  mutate(score = raw_rating - 2.75,
+         treat = (score >= 0),
+         window1 = (score >= -.175 & score <= .175),
+         window2 = (score >= -.125 & score <= .125),
+         mkt_share = avg_enrollment / avg_eligibles,
+         ln_share = log(mkt_share),
+         score_treat = score * treat)
+         
+         
+  ma.rd275 <- ma.rd275 %>%
+  mutate(hmo = ifelse(plan_type == "HMO/HMOPOS", 1, 0), 
+         part_d = ifelse(partd == "Yes", 1, 0))
+
+est275 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
+                 h=0.125, p=1, kernel="uniform", vce="hc0",
+                 masspoints="off")
+
+  match.dat <- matchit(treat~hmo + part_d, 
+                     data=ma.rd275 %>% 
+                       filter(window2==TRUE, 
+                              !is.na(treat), 
+                              !is.na(hmo), 
+                              !is.na(part_d)),
+                     method=NULL, distance="mahalanobis")
+
+love.plot(match.dat, abs=TRUE)  
+
+library(ggplot2)
+
+q9 <- data_raw %>%
+  mutate(hmo = ifelse(plan_type == "HMO/HMOPOS", 1, 0), 
+         dummy_partd = ifelse(partd == "Yes", 1, 0)) %>%
+  group_by(raw_rating) %>%
+  summarise(prop_hmo = mean(hmo), prop_d = mean(dummy_partd))
+
+q9$dummy_partd
+
+q9 %>%
+  mutate(bin = ntile(prop_hmo, n = 30)) %>%
+  group_by(bin) %>%
+  summarise(xmean = mean(raw_rating), ymean = mean(prop_hmo)) %>%
+  ggplot(aes(x = xmean, y = ymean)) + 
+  geom_point() +
+  geom_vline(xintercept = 2.75, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 3.25, linetype = "dashed", color = "blue") +
+  scale_x_continuous(limits = c(2.5, 3.5))
+
+q9 %>%
+  mutate(bin = ntile(prop_d, n = 20)) %>%
+  group_by(bin) %>%
+  summarise(xmean = mean(raw_rating), ymean = mean(prop_d)) %>%
+  ggplot(aes(x = xmean, y = ymean)) + 
+  geom_point() +
+  geom_vline(xintercept = 2.75, linetype = "dashed", color = "red") +
+  geom_vline(xintercept = 3.25, linetype = "dashed", color = "blue") +
+  scale_x_continuous(limits = c(2.5, 3.5))
+
+#covariate balance from homework 2
+
 
 #Q10
 #Summarize your findings from 5-9. What is the effect of increasing a star rating on enrollments?
