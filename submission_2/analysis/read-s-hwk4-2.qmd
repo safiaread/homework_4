@@ -36,6 +36,8 @@ q1<- data %>%
   labs(title = "Boxplot of Counts by County", x = "County", y = "Count")+
   ylim(0,40)
 
+q1
+
 #Have dropped outliers
 ```
 
@@ -124,27 +126,6 @@ q5[1,3:7]
 
 Question 6
 ```{r, echo = F}
-data.rd1 <- data_raw %>%
-  filter(Star_Rating==2.5 | Star_Rating==3)%>%
-  mutate(score = raw_rating - 2.25,
-         treat = (score>=0),
-         window1 = (score>=-.125 & score<=.125),
-         mkt_share = avg_enrollment/avg_eligibles,
-         ln_share = log(mkt_share),
-         score_treat=score*treat)
-star25.1 <- lm(mkt_share ~ score + treat, data=data.rd1)
-star25.2 <- lm(mkt_share ~ score + treat, data= (data.rd1 %>% filter(window1==TRUE)))
-star25.3 <- lm(mkt_share ~ score + treat + score_treat, data= (data.rd1 %>% filter(window1==TRUE)))
-est1 <- as.numeric(star25.1$coef[3])
-est2 <- as.numeric(star25.2$coef[3])
-est3 <- as.numeric(star25.3$coef[3])
-
-bandwidth <- c("0.2", "0.125", "0.125")
-estimates <- c(est1, est2, est3)
-
-three_stars <- data.frame(bandwidth,estimates)
-three_stars
-
 ma.rd275 <- data_raw %>%
   filter(Star_Rating==2.5 | Star_Rating==3) %>%
   mutate(score = raw_rating - 2.75,
@@ -158,8 +139,10 @@ ma.rd275 <- data_raw %>%
 est275 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
                  h=0.125, p=1, kernel="uniform", vce="hc0",
                  masspoints="off")
+
+est275$coef[1]
               
-summary(est275)
+#summary(est275)
 
 #rows <- tribble(~term, ~ m1, ~ m2, ~ m3 ,
               #  'Bandwidth', "0.25", "0.125", "0.#125")
@@ -172,27 +155,6 @@ summary(est275)
          #           "score_treat"="Score x Treat"),
         #  gof_map=c("nobs", "r.squared"),
         #  add_rows=rows)
-
-data.rd2 <- data_raw %>%
-  filter(Star_Rating==3 | Star_Rating==3.5) %>%
-  mutate(score = raw_rating - 2.25,
-         treat = (score>=0),
-         window1 = (score>=-.125 & score<=.125),
-         mkt_share = avg_enrollment/avg_eligibles,
-         ln_share = log(mkt_share),
-         score_treat=score*treat)
-star35.1 <- lm(mkt_share ~ score + treat, data=data.rd2)
-star35.2 <- lm(mkt_share ~ score + treat, data= (data.rd2 %>% filter(window1==TRUE)))
-star35.3 <- lm(mkt_share ~ score + treat + score_treat, data= (data.rd2 %>% filter(window1==TRUE)))
-est1 <- as.numeric(star35.1$coef[3])
-est2 <- as.numeric(star35.2$coef[3])
-est3 <- as.numeric(star35.3$coef[3])
-
-bandwidth <- c("0.2", "0.125", "0.125")
-estimates <- c(est1, est2, est3)
-
-threefive_stars <- data.frame(bandwidth,estimates)
-threefive_stars
 
 #rows <- tribble(~term, ~ m1, ~ m2, ~ m3 ,
               #  'Bandwidth', "0.25", "0.125", "0.125")
@@ -220,8 +182,9 @@ est325 <- rdrobust(y=ma.rd325$mkt_share, x=ma.rd325$score, c=0,
                  h=0.125, p=1, kernel="uniform", vce="hc0",
                  masspoints="off")
               
-summary(est325)
+#summary(est325)
 
+est325$coef[1]
 ```
 
 Question 7
@@ -255,7 +218,7 @@ est275_5 <- rdrobust(y=ma.rd275$mkt_share, x=ma.rd275$score, c=0,
                  h=0.15, p=1, kernel="uniform", vce="hc0",
                  masspoints="off")     
 
-summary(est275)
+#summary(est275)
 
 bandwidth <- c("0.1", "0.12", "0.13", "0.14", "0.15")
 estimates <- c(est275_1$coef[1], est275_2$coef[1], est275_3$coef[1], est275_4$coef[1], est275_5$coef[1])
