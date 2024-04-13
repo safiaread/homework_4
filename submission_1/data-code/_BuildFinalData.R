@@ -27,7 +27,7 @@ source("submission_1/data-code/8_FFS_Costs.R")
 
 
 # Tidy data ---------------------------------------------------------------
-full.ma.data <- read_rds("data/output/full_ma_data.rds")
+full.ma.data <- read_rds("/Users/safiaread/Desktop/homework_4/data/output/full_ma_data.rds")
 contract.service.area <- read_rds("data/output/contract_service_area.rds")
 star.ratings <- read_rds("data/output/star_ratings.rds")
 ma.penetration.data <- read_rds("data/output/ma_penetration.rds")

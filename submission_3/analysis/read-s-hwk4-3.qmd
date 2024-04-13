@@ -1,0 +1,119 @@
+---
+title: "Homework Four Submission 3"
+author: "Safia Read"
+format:
+  pdf:
+    output-file: "read-s-hwk4-3"
+    output-ext:  "pdf"
+    header-includes:
+      - \usepackage{float}
+      - \floatplacement{table}{H}
+---
+
+This is my third submission of the fourth homework for Econ 470. 
+
+[Link to Github](https://github.com/safiaread/homework_4)
+
+https://github.com/safiaread/homework_4
+
+```{r, echo = F, message = F}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, stringr, readxl, data.table, gdata, fixest, xtable, modelsummary, rdrobust, MatchIt, cobalt)
+load("/Users/safiaread/Desktop/homework_4/submission_3/Hwk4_workspace.Rdata")
+#no need to limit partd because the way the data was
+
+```
+
+Question 1
+I think the number of plans per county is pretty low, especially because they decrease over time. This could mean the marketplace isn't very competitive, especially if the same companies own the plans.
+```{r, echo = F, message = F, warning = F}
+figure_q1
+```
+
+Question 2
+As shown in the three graphs below, the distribution of star ratings has shifted right over time. 
+```{r, echo = F, message = F, warning = F}
+figure_2_2010
+```
+```{r, echo = F, message = F, warning = F}
+figure_2_2012
+```
+```{r, echo = F, message = F, warning = F}
+figure_2_2015
+```
+
+Question 3
+
+The average benchmark rose about $40 between 2010 and 2014 before falling off sharply to below $800 in 2015.
+```{r, echo = F, message = F}
+figure_q3
+```
+
+Question 4
+
+Medicare Advantage has increased in popularity over time, although there is a dip in 2013 (perhaps due to an error). In 2015, Medicare Advantage Plans were about half of the market. I would expect that to correlate with increased benchmark. payments.
+```{r, echo = F, message = F}
+figure_q4
+```
+
+Question 5
+
+The table below shows the counts of plans rounded up to the next star rating (ex. 2.76 would be rounded up to 3 stars).
+```{r, echo = F}
+table_q5
+```
+
+Question 6
+
+The table below shows the regression outputs for the 2.75 and 3.25 rounding cutoffs. The treat and score coefficients are slightly positive for both showing that the plans that were rounded up have more enrollments. The interaction between them was negative.
+```{r, echo = F, message = F}
+table_q6
+```
+
+
+Question 7
+
+The table and graph below show the regression coefficient for score. The analysis is sensitive to the bandwidth and changes the estimate.
+
+```{r, echo = F, message = F}
+joint_loop
+```
+```{r,echo = F, message = F}
+figure_q7
+```
+
+Question 8
+
+At the 2.75 cutoff, there doesn't appear to be much discrepancy between the number of plans, although it is a little lower above.
+```{r, echo = F, message = F, warning = F}
+figure_q8_1
+```
+
+At the 3.25 cutoff, there is a sharp peak of plans just over the 3.25 threshold suggesting manipulation.
+
+```{r, echo = F, message = F, warning = F}
+figure_q8_2
+```
+
+Question 9
+
+From my binned scatterplots, we can see some covariate imbalance around the proportion of HMO plans, with a higher proportion of HMO's being above the 3.5 threshold. For the Part D plans, there seems to be a lower proprtion of them past the 3.5 threshold. There isn't a lot of data around the 3 star threshold.
+
+```{r, echo = F, message = F, warning = F}
+figure_q9_1
+```
+```{r, echo = F, message = F, warning = F}
+figure_q9_2
+```
+
+From balance tables we can see that the proportion of HMO and Part D plans look pretty similar around both cutoffs (between 2.5 and 3 as well as between 3 and 3.5). However, there is more of a difference in the proportions around the 2.75 star cutoff.
+```{r, echo = F, message = F}
+table_q9_1
+```
+```{r, echo = F, message = F}
+table_q9_2
+```
+
+Question 10
+
+Increasing star rating caused enrollments to increase slightly, although the magnitude depends on the bandwidth used in the regression estimate. This is probably because plans with higher star ratings are more attractive to customers searching for plans. If a person is deciding between two similar plans that are 3 and 3.5 star, they may be swayed to enroll in the higher star plan. This combined with benchmark payments encourage plans to manipulate themselves to get the minimum raw score to increase their star rating. 
